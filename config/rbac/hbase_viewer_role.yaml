@@ -1,0 +1,20 @@
+# permissions for end users to view hbases.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hbase-viewer-role
+rules:
+- apiGroups:
+  - hbase.dameng.com
+  resources:
+  - hbases
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hbase.dameng.com
+  resources:
+  - hbases/status
+  verbs:
+  - get

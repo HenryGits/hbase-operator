@@ -1,0 +1,7 @@
+apiVersion: hbase.dameng.com/v1
+kind: Hbase
+metadata:
+  name: hbase-sample
+spec:
+  # Add fields here
+  foo: bar

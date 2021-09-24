@@ -14,12 +14,13 @@ LABEL REPOSITORY=zhc/hbase TAG=2.4.6
 
 # jdk依赖包
 ENV JAVA_HOME=/usr/local/jdk
-ENV CLASSPATH=.:${JAVA_HOME}/jre/lib/rt.jar:${JAVA_HOME}/lib/dt.jar:${JAVA_HOME}/lib/tools.jar
+ENV CLASSPATH=.:$JAVA_HOME/jre/lib/rt.jar:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
 
 # Hbase环境变量配置
 ENV HBASE_HOME=/usr/local/hbase
+ENV HBASE_CONF_DIR=$HBASE_HOME/conf
 ENV CLASSPATH=$CLASSPATH:$HBASE_HOME/lib
-ENV PATH=$PATH:$HBASE_HOME/bin
+ENV PATH=$PATH:$HBASE_HOME/bin:${JAVA_HOME}/bin
 
 COPY  jdk /usr/local/jdk
 COPY  hbase /usr/local/hbase

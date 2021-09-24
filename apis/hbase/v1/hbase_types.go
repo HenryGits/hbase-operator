@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"gitee.com/dmcca/gotools/compass/typed"
 	typedv1 "gitee.com/dmcca/gotools/compass/typed/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -57,25 +56,21 @@ type HbaseStatus struct {
 
 // HbaseSpec defines the desired state of Hbase
 type HbaseSpec struct {
-	// MasterSpec is definition of HBase Master server
-	// +optional
-	MasterSpec ServerSpec `json:"masterSpec,omitempty"`
-	// RegionServerSpec is definition of HBase RegionServer
-	// +optional
-	RegionServerSpec ServerSpec `json:"regionServerSpec,omitempty"`
-	// +optional
-	ThriftServer ServerSpec `json:"thriftServer,omitempty"`
 	// +optional
 	Image typedv1.Image `json:"image,omitempty"`
+	// MasterSpec is definition of HBase Master server
+	// +optional
+	MasterSpec ServerSpec `json:"master,omitempty"`
+	// RegionServerSpec is definition of HBase RegionServer
+	// +optional
+	RegionServerSpec ServerSpec `json:"regionServer,omitempty"`
+	// +optional
+	ThriftServer ServerSpec `json:"thriftServer,omitempty"`
 }
 
 // ServerSpec is a specification for an HBase server (Master or Regionserver)
 type ServerSpec struct {
-	// +optional
-	Volume typed.Volume `json:"volume,omitempty"`
 	// 实例个数
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
-	// +optional
-	Port typedv1.Port `json:"port,omitempty"`
 }

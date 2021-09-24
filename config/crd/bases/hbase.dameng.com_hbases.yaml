@@ -47,7 +47,7 @@ spec:
                   tag:
                     type: string
                 type: object
-              masterSpec:
+              master:
                 description: MasterSpec is definition of HBase Master server
                 properties:
                   port:
@@ -82,7 +82,7 @@ spec:
                         type: string
                     type: object
                 type: object
-              regionServerSpec:
+              regionServer:
                 description: RegionServerSpec is definition of HBase RegionServer
                 properties:
                   port:

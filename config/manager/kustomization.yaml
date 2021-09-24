@@ -8,3 +8,7 @@ configMapGenerator:
 - name: manager-config
   files:
   - controller_manager_config.yaml
+- name: manager-template
+  files:
+    - templates/hbase.dameng.com_hbase.gotmpl
+

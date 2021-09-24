@@ -6,16 +6,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -24,11 +25,10 @@ var (
 	log   *zap.Logger
 	level zapcore.Level
 
-	nnDir     = flag.String("NameNodeDir", "/usr/local/hadoop/nn", "NameNode Directory")
-	master = flag.Bool("master", false, "是否启动NameNode服务")
-	regionserver = flag.Bool("regionserver", false, "是否启动DataNode服务")
-	thrift = flag.Bool("thrift", false, "是否启动ResourceManager服务")
-	thrift2 = flag.Bool("thrift2", false, "是否启动NodeManager服务")
+	master       = flag.Bool("Master", false, "是否启动Master服务")
+	regionServer = flag.Bool("RegionServer", false, "是否启动RegionServer服务")
+	thrift       = flag.Bool("Thrift", false, "是否启动Thrift服务")
+	thrift2      = flag.Bool("Thrift2", false, "是否启动Thrift2服务")
 )
 
 func main() {
@@ -37,81 +37,48 @@ func main() {
 	// Parse command line into the defined flags
 	flag.Parse()
 
-		path, _ := filepath.Abs(*nnDir)
-		// 判断NameNode是否有效
-		files, err := ioutil.ReadDir(path)
-		if err != nil {
-			log.Error("NameNode路径不存在!", zap.Error(err))
-			os.Exit(1)
-		}
-
-		// 判断NameNode是否已被初始化过
-		if len(files) <= 0 {
-			cmd := exec.CommandContext(ctx, os.ExpandEnv("$HADOOP_HOME")+"/bin/hdfs", "namenode", "-format")
-			out, err := cmd.CombinedOutput()
-			log.Info(fmt.Sprintf("===NameNode Init...=== \n%s\n", string(out)))
-
-			if err != nil {
-				log.Error("NameNode初始化失败!", zap.Error(err))
-				os.Exit(1)
-			}
-		}
-
-
-	if *dnService {
-		cmd := exec.CommandContext(ctx, os.ExpandEnv("$HADOOP_HOME")+"/bin/hdfs", "--daemon", "start", "datanode")
-		out, err := cmd.CombinedOutput()
-		log.Info(fmt.Sprintf("===DataNode Service...=== \n%s\n", string(out)))
-
-		if err != nil {
-			log.Error("DataNode启动失败!", zap.Error(err))
-			os.Exit(1)
-		}
-	}
-
-	if *rmService {
-		cmd := exec.CommandContext(ctx, os.ExpandEnv("$HADOOP_HOME")+"/bin/yarn", "--daemon", "start", "resourcemanager")
-		out, err := cmd.CombinedOutput()
-		log.Info(fmt.Sprintf("===ResourceManager Service...=== \n%s\n", string(out)))
-
-		if err != nil {
-			log.Error("ResourceManager启动失败!", zap.Error(err))
-			os.Exit(1)
-		}
-	}
-
-	if *nmService {
-		cmd := exec.CommandContext(ctx, os.ExpandEnv("$HADOOP_HOME")+"/bin/yarn", "--daemon", "start", "nodemanager")
-		out, err := cmd.CombinedOutput()
-		log.Info(fmt.Sprintf("===NodeManager Service...=== \n%s\n", string(out)))
-
-		if err != nil {
-			log.Error("NodeManager启动失败!", zap.Error(err))
-			os.Exit(1)
-		}
-	}
-
-	if *hsService {
-		cmd := exec.CommandContext(ctx, os.ExpandEnv("$HADOOP_HOME")+"/bin/mapred", "--daemon", "start", "historyserver")
-		out, err := cmd.CombinedOutput()
-		log.Info(fmt.Sprintf("===HistoryServer Service...=== \n%s\n", string(out)))
-
-		if err != nil {
-			log.Error("HistoryServer启动失败!", zap.Error(err))
-			os.Exit(1)
-		}
-	}
-
 	fmt.Println(`
- ██      ██          ██  ██            ██      ██                ██                          
-░██     ░██         ░██ ░██           ░██     ░██               ░██                   ██████ 
-░██     ░██  █████  ░██ ░██  ██████   ░██     ░██  ██████       ░██  ██████   ██████ ░██░░░██
-░██████████ ██░░░██ ░██ ░██ ██░░░░██  ░██████████ ░░░░░░██   ██████ ██░░░░██ ██░░░░██░██  ░██
-░██░░░░░░██░███████ ░██ ░██░██   ░██  ░██░░░░░░██  ███████  ██░░░██░██   ░██░██   ░██░██████ 
-░██     ░██░██░░░░  ░██ ░██░██   ░██  ░██     ░██ ██░░░░██ ░██  ░██░██   ░██░██   ░██░██░░░  
-░██     ░██░░██████ ███ ███░░██████   ░██     ░██░░████████░░██████░░██████ ░░██████ ░██     
-░░      ░░  ░░░░░░ ░░░ ░░░  ░░░░░░    ░░      ░░  ░░░░░░░░  ░░░░░░  ░░░░░░   ░░░░░░  ░░
+ ██      ██          ██  ██            ██      ██ ██████                            
+░██     ░██         ░██ ░██           ░██     ░██░█░░░░██                           
+░██     ░██  █████  ░██ ░██  ██████   ░██     ░██░█   ░██   ██████    ██████  █████ 
+░██████████ ██░░░██ ░██ ░██ ██░░░░██  ░██████████░██████   ░░░░░░██  ██░░░░  ██░░░██
+░██░░░░░░██░███████ ░██ ░██░██   ░██  ░██░░░░░░██░█░░░░ ██  ███████ ░░█████ ░███████
+░██     ░██░██░░░░  ░██ ░██░██   ░██  ░██     ░██░█    ░██ ██░░░░██  ░░░░░██░██░░░░ 
+░██     ░██░░██████ ███ ███░░██████   ░██     ░██░███████ ░░████████ ██████ ░░██████
+░░      ░░  ░░░░░░ ░░░ ░░░  ░░░░░░    ░░      ░░ ░░░░░░░   ░░░░░░░░ ░░░░░░   ░░░░░░
 	`)
+
+	if *master {
+		err := CommandContext(ctx, os.ExpandEnv("$HBASE_HOME")+"/bin/hbase", "master", "start")
+		if err != nil {
+			log.Error("Master启动失败!", zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
+	if *regionServer {
+		err := CommandContext(ctx, os.ExpandEnv("$HBASE_HOME")+"/bin/hbase", "regionserver", "start")
+		if err != nil {
+			log.Error("RegionServer启动失败!", zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
+	if *thrift {
+		err := CommandContext(ctx, os.ExpandEnv("$HBASE_HOME")+"/bin/hbase", "thrift", "start")
+		if err != nil {
+			log.Error("Thrift启动失败!", zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
+	if *thrift2 {
+		err := CommandContext(ctx, os.ExpandEnv("$HBASE_HOME")+"/bin/hbase", "thrift2", "start")
+		if err != nil {
+			log.Error("Thrift2启动失败!", zap.Error(err))
+			os.Exit(1)
+		}
+	}
 
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
@@ -121,6 +88,31 @@ func main() {
 	case <-sigterm:
 		fmt.Println("Bye: signal cancelled")
 	}
+}
+
+// CommandContext 执行shell实时输出日志
+func CommandContext(ctx context.Context, name string, cmd ...string) error {
+	c := exec.CommandContext(ctx, name, cmd...)
+	stdout, err := c.StderrPipe()
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		reader := bufio.NewReader(stdout)
+		for {
+			readString, err := reader.ReadString('\n')
+			if err != nil || err == io.EOF {
+				panic(err)
+			}
+			fmt.Print(readString)
+		}
+	}(&wg)
+	err = c.Start()
+	wg.Wait()
+	return err
 }
 
 // Zap 初始日志zap
@@ -162,5 +154,5 @@ func getEncoderCore() (core zapcore.Core) {
 
 // 自定义日志输出时间格式
 func CustomTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(t.Format("[Hadoop] " + "2006-01-02 15:04:05.000"))
+	enc.AppendString(t.Format("[HBase] " + "2006-01-02 15:04:05.000"))
 }

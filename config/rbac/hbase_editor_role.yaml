@@ -3,6 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: hbase-editor-role
+  namespace: system
 rules:
 - apiGroups:
   - hbase.dameng.com

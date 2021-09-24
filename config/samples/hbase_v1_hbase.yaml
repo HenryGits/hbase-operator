@@ -1,7 +1,16 @@
+---
 apiVersion: hbase.dameng.com/v1
 kind: Hbase
 metadata:
   name: hbase-sample
+  namespace: system
 spec:
-  # Add fields here
-  foo: bar
+  image:
+    repository: hbase
+    tag: v2.4.6
+  master:
+    replicas: 1
+  regionServer:
+    replicas: 2
+  thriftServer:
+    replicas: 1

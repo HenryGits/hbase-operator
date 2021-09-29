@@ -65,11 +65,22 @@ type HbaseSpec struct {
 	// +optional
 	RegionServerSpec ServerSpec `json:"regionServer,omitempty"`
 	// +optional
-	ThriftServer ServerSpec `json:"thriftServer,omitempty"`
+	ThriftServer ThriftServerSpec `json:"thriftServer,omitempty"`
 }
 
 // ServerSpec is a specification for an HBase server (Master or Regionserver)
 type ServerSpec struct {
+	// 实例个数
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+}
+
+type ThriftServerSpec struct {
+	// thrift服务名
+	// +optional
+	// +kubebuilder:validation:Enum={thrift,thrift2}
+	// +kubebuilder:default="thrift"
+	Name string `json:"name,omitempty"`
 	// 实例个数
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`

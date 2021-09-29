@@ -14,7 +14,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.5
 )
 
-replace (
-	gitee.com/dmcca/compass-tenant v0.0.0-20210824123435-eb963b6337b6 => C:\Apps\go\gopath\compass-tenant@v0.0.0
-	gitee.com/dmcca/gotools v0.0.2-0.20210817112322-50db2523d334 => C:\Apps\go\gopath\gotools@v0.0.0
-)
+replace gitee.com/dmcca/gotools v0.0.2-0.20210817112322-50db2523d334 => C:\Apps\go\gopath\gotools@v0.0.0

@@ -9,8 +9,9 @@ spec:
     repository: hbase
     tag: v2.4.6
   master:
-    replicas: 1
+    replicas: 2
   regionServer:
     replicas: 2
   thriftServer:
+    name: thrift
     replicas: 1

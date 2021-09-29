@@ -12,7 +12,7 @@ data:
     <configuration>
       <property>
         <name>hbase.rootdir</name>
-        <value>hdfs://hadoop-sample-namenode-0.hadoop-sample-namenode.system.svc.cluster.local:9000/user/hbase</value>
+        <value>hdfs://hadoop-namenode.system.svc.cluster.local:9000/user/hbase</value>
       </property>
       <property>
         <name>hbase.cluster.distributed</name>
@@ -107,17 +107,10 @@ spec:
             - name: hbase-config
               mountPath: /usr/local/hbase/conf/regionservers
               subPath: regionservers
-#            - name: dfs
-#              mountPath: /usr/local/hadoop/dn
       volumes:
         - name: hbase-config
           configMap:
             name: {{ $.ObjectMeta.Name }}
-#        - name: dfs
-#          hostPath:
-#            # Ensure the file DirectoryOrCreate is created.
-#            path: /home/data/dn
-#            type: DirectoryOrCreate
 
 ---
 apiVersion: policy/v1beta1
@@ -191,16 +184,10 @@ spec:
         - name: {{ $.ObjectMeta.Name }}-regionserver
           image: "{{ $.Spec.Image.Repository }}:{{ $.Spec.Image.Tag }}"
           imagePullPolicy: IfNotPresent
-#          ports:
-#            - containerPort: 9870
-#              name: webhdfs
           args:
             - "--RegionServer"
           securityContext:
             privileged: true
-#          env:
-#            - name: HDFS_NAME_NODE_DIR
-#              value: "/usr/local/hadoop/nn"
           volumeMounts:
             - name: hbase-config
               mountPath: /usr/local/hbase/conf/hbase-site.xml
@@ -208,17 +195,10 @@ spec:
             - name: hbase-config
               mountPath: /usr/local/hbase/conf/regionservers
               subPath: regionservers
-#            - name: dfs
-#              mountPath: /usr/local/hadoop/nn
       volumes:
         - name: hbase-config
           configMap:
             name: {{ $.ObjectMeta.Name }}
-#        - name: dfs
-#          hostPath:
-#            # Ensure the file DirectoryOrCreate is created.
-#            path: /home/data/nn
-#            type: DirectoryOrCreate
 
 ---
 apiVersion: policy/v1beta1
@@ -245,14 +225,109 @@ metadata:
     app: {{ $.ObjectMeta.Name }}-regionserver
     release: {{ $.ObjectMeta.Name }}-regionserver
 spec:
-  type: NodePort
+#  type: NodePort
   ports:
     - name: ipc
       port: 60020
       protocol: TCP
     - name: web
       port: 60030
-#  clusterIP: None
+  clusterIP: None
   selector:
     app: {{ $.ObjectMeta.Name }}-regionserver
     release: {{ $.ObjectMeta.Name }}-regionserver
+
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  labels:
+    app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+    release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+spec:
+  serviceName: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  replicas: {{ $.Spec.ThriftServer.Replicas }}
+  selector:
+    matchLabels:
+      app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+      release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+        release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+        sidecar.istio.io/inject: "false"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+              topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+          image: "{{ $.Spec.Image.Repository }}:{{ $.Spec.Image.Tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090
+              name: thrift
+            - containerPort: 9095
+              name: web
+          args:
+            {{- $version := $.Spec.ThriftServer.Name }}
+            {{- if eq $version "thrift" }}
+            - "--Thrift"
+            {{- else }}
+            - "--Thrift2"
+            {{- end }}
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: hbase-config
+              mountPath: /usr/local/hbase/conf/hbase-site.xml
+              subPath: hbase-site.xml
+            - name: hbase-config
+              mountPath: /usr/local/hbase/conf/regionservers
+              subPath: regionservers
+      volumes:
+        - name: hbase-config
+          configMap:
+            name: {{ $.ObjectMeta.Name }}
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  labels:
+    app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+    release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+      release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  minAvailable: 1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+  labels:
+    app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+    release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+spec:
+  type: NodePort
+  ports:
+    - name: thrift
+      port: 9090
+    - name: web
+      port: 9095
+  selector:
+    app: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
+    release: {{ $.ObjectMeta.Name }}-{{ $.Spec.ThriftServer.Name }}
